@@ -54,12 +54,16 @@ class ExportProcess:
         self.jsonExport = emptyJSON
     
     def getMetadata(self):
-        self.jsonExport["metadata"].update({"referenceSystem" : str(bpy.context.scene.world['CRS'])})
+        if 'CRS' in bpy.context.scene.world:
+            self.jsonExport["metadata"].update({"referenceSystem" : str(bpy.context.scene.world['CRS'])})
 
     def getTransform(self):
-        self.jsonExport["transform"]["translate"].append(bpy.context.scene.world['X_Origin'])
-        self.jsonExport["transform"]["translate"].append(bpy.context.scene.world['Y_Origin'])
-        self.jsonExport["transform"]["translate"].append(bpy.context.scene.world['Z_Origin'])
+        if 'X_Origin' in bpy.context.scene.world:
+            self.jsonExport["transform"]["translate"].append(bpy.context.scene.world['X_Origin'])
+        if 'Y_Origin' in bpy.context.scene.world:
+            self.jsonExport["transform"]["translate"].append(bpy.context.scene.world['Y_Origin'])
+        if 'Z_Origin' in bpy.context.scene.world:
+            self.jsonExport["transform"]["translate"].append(bpy.context.scene.world['Z_Origin'])
 
     def getTextures(self):
         allTextures = bpy.data.textures.data.images
@@ -90,20 +94,21 @@ class ExportProcess:
         meshes = bpy.data.meshes
        
         for mesh in meshes:
-            uv_layer = mesh.uv_layers[0].data
-            for polyIndex, poly  in enumerate(mesh.polygons):
-                semantic = poly.material_index
-                loopTotal = poly.loop_total
-                if len(mesh.materials[semantic].node_tree.nodes) > 2:
-                    for loop_index in range(poly.loop_start, poly.loop_start + loopTotal):
-                        uv = uv_layer[loop_index].uv
-                        u = uv[0]
-                        v = uv[1]
-                        vertices_textureJSON = [round(u,7),
-                                                round(v,7)]
-                        self.jsonExport['appearance']['vertices-texture'].append(vertices_textureJSON)
-                else: 
-                    pass
+            if len(mesh.uv_layers)>0:
+                uv_layer = mesh.uv_layers[0].data
+                for polyIndex, poly  in enumerate(mesh.polygons):
+                    semantic = poly.material_index
+                    loopTotal = poly.loop_total
+                    if len(mesh.materials[semantic].node_tree.nodes) > 2:
+                        for loop_index in range(poly.loop_start, poly.loop_start + loopTotal):
+                            uv = uv_layer[loop_index].uv
+                            u = uv[0]
+                            v = uv[1]
+                            vertices_textureJSON = [round(u,7),
+                                                    round(v,7)]
+                            self.jsonExport['appearance']['vertices-texture'].append(vertices_textureJSON)
+                    else: 
+                        pass
 
     def createCityObject(self):
         vertexArray = []

@@ -46,14 +46,15 @@ class Mesh:
             newFace = []
             # check vertex coordinate in face
             for value in face:
-                vertexCoords = vertices[value]
-                # if the coordinate used in the mesh already exists get its index
-                if vertexCoords in meshVertices:
-                    newFace.append(meshVertices.index(vertexCoords))
-                # if the coordinate does not jet exist add it to the mesh and get its index
-                else:
-                    meshVertices.append(vertexCoords)
-                    newFace.append(meshVertices.index(vertexCoords))
+                if value<len(vertices):
+                    vertexCoords = vertices[value]
+                    # if the coordinate used in the mesh already exists get its index
+                    if vertexCoords in meshVertices:
+                        newFace.append(meshVertices.index(vertexCoords))
+                    # if the coordinate does not jet exist add it to the mesh and get its index
+                    else:
+                        meshVertices.append(vertexCoords)
+                        newFace.append(meshVertices.index(vertexCoords))
             # add the newly mapped face to the list of faces for the mesh
             newFaces.append(newFace)
 

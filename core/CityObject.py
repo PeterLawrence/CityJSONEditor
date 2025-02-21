@@ -25,7 +25,11 @@ class ImportCityObject:
         # type of the given object e.g. "Building" or "Bridge" etc.
         self.objectType = self.object['type']
         # LOD of the given object
-        self.objectLOD = math.floor(self.object['geometry'][0]['lod'])
+        if len(self.object['geometry'])>9:
+            self.objectLOD = math.floor(float(self.object['geometry'][0]['lod']))
+        else:
+            self.objectLOD = 2.0
+        
         # entire Data of the file
         self.rawObjectData = rawObjectData
         # File to be imported
@@ -56,7 +60,8 @@ class ImportCityObject:
     def createMesh(self, object, vertices, oid):
         # create the objects mesh and store the data
         mesh = Mesh(object,vertices,oid)
-        self.mesh = mesh.execute()
+        if len(vertices)>0:
+            self.mesh = mesh.execute()
 
     def createObject(self, mesh):
         # create a new object with the stored mesh
@@ -149,10 +154,19 @@ class ExportCityObject:
         # all vertices of the current object
         self.vertices = []
         self.objID = self.object.name
-        self.objType = self.object['cityJSONType']
-        self.lod = self.object['LOD']
+        if 'cityJSONType' in self.object:
+            self.objType = self.object['cityJSONType']
+        else:
+            self.objType = ""
+        if 'LOD' in self.object:
+            self.lod = self.object['LOD']
+        else:
+            self.lod = ""
         self.maxValue = ""
-        self.offsetArray = [bpy.context.scene.world['X_Origin'],bpy.context.scene.world['Y_Origin'],bpy.context.scene.world['Z_Origin']]
+        if 'X_Origin' in bpy.context.scene.world:
+            self.offsetArray = [bpy.context.scene.world['X_Origin'],bpy.context.scene.world['Y_Origin'],bpy.context.scene.world['Z_Origin']]
+        else:
+            self.offsetArray = [0,0,0]
         self.objGeoExtent = []
         self.json = {}
         self.geometry = []
@@ -167,78 +181,85 @@ class ExportCityObject:
 
 
     def getVertices(self):
-        vertexArray = []
-        vertices = self.object.data.vertices
-        for vertex in vertices:
-            vertexCoordinates = vertex.co
-            vertexJSON = []
-            vertexJSON.append(vertexCoordinates[0])
-            vertexJSON.append(vertexCoordinates[1])
-            vertexJSON.append(vertexCoordinates[2])
-            vertexArray.append(vertexJSON)
-        self.vertices = vertexArray
+        if hasattr(self.object.data, 'vertices'):
+            vertexArray = []
+            vertices = self.object.data.vertices
+            for vertex in vertices:
+                vertexCoordinates = vertex.co
+                vertexJSON = []
+                vertexJSON.append(vertexCoordinates[0])
+                vertexJSON.append(vertexCoordinates[1])
+                vertexJSON.append(vertexCoordinates[2])
+                vertexArray.append(vertexJSON)
+            self.vertices = vertexArray
+        else:
+            print("Warning: Object has no vertices")
 
     def getObjectExtend(self):
         objGeoExtend = []
         vertices = numpy.asarray(self.vertices)
-        maxValue = vertices.max(axis=0, keepdims=True)[0]
-        maxValue = maxValue+self.offsetArray
-        minValue = vertices.min(axis=0, keepdims=True)[0]
-        minValue = minValue+self.offsetArray
-        for i in minValue:
-            objGeoExtend.append(round(i,3))
-        for i in maxValue:
-            objGeoExtend.append(round(i,3))
-        self.objGeoExtent = objGeoExtend
+        if len(vertices)>0:
+            maxValue = vertices.max(axis=0, keepdims=True)[0]
+            maxValue = maxValue+self.offsetArray
+            minValue = vertices.min(axis=0, keepdims=True)[0]
+            minValue = minValue+self.offsetArray
+            for i in minValue:
+                objGeoExtend.append(round(i,3))
+            for i in maxValue:
+                objGeoExtend.append(round(i,3))
+            self.objGeoExtent = objGeoExtend
 
     def getBoundaries(self):
         # get the mesh by name
-        mesh = bpy.data.meshes[self.objID]
-        boundaries = []
-        # iterate through polygons
-        for poly in mesh.polygons:
-            loop = []
-            # iterate through loops inside polygons
-            # get the vertex coordinates and find the Index in the corresponding list of all vertices
-            for loop_index in poly.loop_indices:
-                vertexIndex = mesh.loops[loop_index].vertex_index
-                vertexValue = []
-                vertexValue.append(mesh.vertices[vertexIndex].co[0])
-                vertexValue.append(mesh.vertices[vertexIndex].co[1])
-                vertexValue.append(mesh.vertices[vertexIndex].co[2])
-                exportIndex = self.vertices.index(vertexValue)
-                # close the loop
-                loop.append(exportIndex+self.lastVertexIndex)
-            boundaries.append([loop])
-        maxVertex = max([max(j) for j in [max(i) for i in boundaries]])
-        self.lastVertexIndex = maxVertex
-        self.geometry = [{
-            "type": "Solid",
-            "lod": self.lod,
-            "boundaries" : [boundaries]
-        }]
+        if self.objID in bpy.data.meshes:
+            mesh = bpy.data.meshes[self.objID]
+            boundaries = []
+            # iterate through polygons
+            for poly in mesh.polygons:
+                loop = []
+                # iterate through loops inside polygons
+                # get the vertex coordinates and find the Index in the corresponding list of all vertices
+                for loop_index in poly.loop_indices:
+                    vertexIndex = mesh.loops[loop_index].vertex_index
+                    vertexValue = []
+                    vertexValue.append(mesh.vertices[vertexIndex].co[0])
+                    vertexValue.append(mesh.vertices[vertexIndex].co[1])
+                    vertexValue.append(mesh.vertices[vertexIndex].co[2])
+                    exportIndex = self.vertices.index(vertexValue)
+                    # close the loop
+                    loop.append(exportIndex+self.lastVertexIndex)
+                boundaries.append([loop])
+            maxVertex = max([max(j) for j in [max(i) for i in boundaries]])
+            self.lastVertexIndex = maxVertex
+            self.geometry = [{
+                "type": "Solid",
+                "lod": self.lod,
+                "boundaries" : [boundaries]
+            }]
 
     def getSemantics(self):
-        mesh = bpy.data.meshes[self.objID]
-        self.semanticValues = []
-        self.semanticSurfaces =[]
-        # iterate through polygons
-        for polyIndex, poly  in enumerate(mesh.polygons):
-            # index of the material slot of the current polygon in blender
-            blenderMaterialIndex = poly.material_index 
+        if self.objID in bpy.data.meshes:
+            mesh = bpy.data.meshes[self.objID]
+            self.semanticValues = []
+            self.semanticSurfaces =[]
+            # iterate through polygons
+            for polyIndex, poly  in enumerate(mesh.polygons):
+                # index of the material slot of the current polygon in blender
+                blenderMaterialIndex = poly.material_index 
 
-            # List of all polygons in index order from 0 to xxx
-            self.semanticValues.append(polyIndex)
-            
-            # type of surface (semantic of surface) of current polygon
-            semanticSurface = mesh.materials[blenderMaterialIndex]['CJEOtype']
-            # List of semantics in reordered from blenders indices to order of polygon indices
-            # example: polygon 4 has semanticValue index of 4 --> semantics of material that is in material slot 163 in blender is written at the current index of 4 in the semanticSurfaces list via append  
-            self.semanticSurfaces.append({"type": semanticSurface})
+                # List of all polygons in index order from 0 to xxx
+                self.semanticValues.append(polyIndex)
+                
+                # type of surface (semantic of surface) of current polygon
+                if 'CJEOtype' in mesh.materials[blenderMaterialIndex]:
+                    semanticSurface = mesh.materials[blenderMaterialIndex]['CJEOtype']
+                    # List of semantics in reordered from blenders indices to order of polygon indices
+                    # example: polygon 4 has semanticValue index of 4 --> semantics of material that is in material slot 163 in blender is written at the current index of 4 in the semanticSurfaces list via append  
+                    self.semanticSurfaces.append({"type": semanticSurface})
 
-            if self.textureSetting:
-                # extract uv mapping
-                self.getTextureMapping(mesh, poly, blenderMaterialIndex, polyIndex)
+                if self.textureSetting:
+                    # extract uv mapping
+                    self.getTextureMapping(mesh, poly, blenderMaterialIndex, polyIndex)
 
     def getTextureMapping(self, mesh, poly, semantic, polyIndex):
         #check if face has texture
@@ -274,11 +295,11 @@ class ExportCityObject:
     def createJSON(self):
         self.json = {self.objID : {"geographicalExtent" : self.objGeoExtent}}
         self.json[self.objID].update({"type": self.objType})
-        if self.objType == 'GenericCityObject':
+        if self.objType == 'GenericCityObject' or len(self.geometry) == 0:
             pass
         else:
             self.geometry[0].update({"semantics" : {"values" : [self.semanticValues],"surfaces" : self.semanticSurfaces}})
-        if self.textureSetting: 
+        if self.textureSetting and len(self.geometry) > 0:
             self.geometry[0].update({"texture" : {"default" : { "values" : [self.textureValues] }}})
         self.json[self.objID].update({"geometry" : self.geometry})
         

@@ -2,6 +2,7 @@ import bpy
 import bmesh
 from .FeatureTypes import (FeatureTypes)
 import time
+import os.path
 
 class Material:
 
@@ -89,24 +90,26 @@ class Material:
             image_path = str(basepath_without_basename)+"\\"+ str(image_path_with_backslash)
             #print("image_path: "+ str(image_path))
             # loading of image
-            image  = bpy.data.images.load(str(image_path))
-            # check, if data has been loaded into the variable
-            
-            # print(str(image.has_data))
+            if os.path.isfile(str(image_path)):
+                image  = bpy.data.images.load(str(image_path))
+                # check, if data has been loaded into the variable
+                
+                # print(str(image.has_data))
 
-            #use nodes
-            self.material.use_nodes = True
+                #use nodes
+                self.material.use_nodes = True
 
-            # setup node tree
-            # set node to PBSDF
-            principled_BSDF = self.material.node_tree.nodes.get('Principled BSDF')
-            # create a new texture-node
-            texture_node = self.material.node_tree.nodes.new('ShaderNodeTexImage')
-            # assign the texture image to the texture-node
-            texture_node.image = image
-            # link the texture-node to the PBSDF-node
-            self.material.node_tree.links.new(texture_node.outputs[0], principled_BSDF.inputs[0])
-        
+                # setup node tree
+                # set node to PBSDF
+                principled_BSDF = self.material.node_tree.nodes.get('Principled BSDF')
+                # create a new texture-node
+                texture_node = self.material.node_tree.nodes.new('ShaderNodeTexImage')
+                # assign the texture image to the texture-node
+                texture_node.image = image
+                # link the texture-node to the PBSDF-node
+                self.material.node_tree.links.new(texture_node.outputs[0], principled_BSDF.inputs[0])
+            else:
+                self.setColor()
         else: 
             self.setColor()
 

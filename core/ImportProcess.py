@@ -122,10 +122,16 @@ class ImportProcess:
             return False
 
     def createWorldProperties(self):
-        bpy.context.scene.world['CRS'] = self.data['metadata']['referenceSystem']
-        bpy.context.scene.world['X_Origin'] = self.worldOrigin[0]
-        bpy.context.scene.world['Y_Origin'] = self.worldOrigin[1]
-        bpy.context.scene.world['Z_Origin'] = self.worldOrigin[2]
+        if 'referenceSystem' in self.data['metadata']:
+            bpy.context.scene.world['CRS'] = self.data['metadata']['referenceSystem']
+        if len(self.worldOrigin)>0:
+            bpy.context.scene.world['X_Origin'] = self.worldOrigin[0]
+            bpy.context.scene.world['Y_Origin'] = self.worldOrigin[1]
+            bpy.context.scene.world['Z_Origin'] = self.worldOrigin[2]
+        else:
+            bpy.context.scene.world['X_Origin'] = 0
+            bpy.context.scene.world['Y_Origin'] = 0
+            bpy.context.scene.world['Z_Origin'] = 0
         print("World parameters have been set!")
 
     def createCityObjects(self):
